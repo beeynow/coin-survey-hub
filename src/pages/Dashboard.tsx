@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Coins, LogOut, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Coins, LogOut, TrendingUp, CheckCircle2, Award } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
+import StatsCard from "@/components/dashboard/StatsCard";
+import SurveyCard from "@/components/dashboard/SurveyCard";
 
 interface Profile {
   coin_balance: number;
@@ -89,22 +89,33 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-border/50 bg-card/30 backdrop-blur-md sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Coins className="w-8 h-8 text-primary" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/20">
+              <Coins className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-primary to-secondary bg-clip-text text-transparent">
               Get Paid
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-2 rounded-full border border-primary/30">
-              <Coins className="w-5 h-5 text-primary" />
-              <span className="font-bold text-lg">{profile?.coin_balance || 0}</span>
+            <div className="flex items-center gap-3 bg-gradient-to-r from-primary/10 via-primary/5 to-secondary/10 px-5 py-2.5 rounded-full border border-primary/20 shadow-sm">
+              <div className="p-1.5 rounded-full bg-primary/20">
+                <Coins className="w-4 h-4 text-primary" />
+              </div>
+              <span className="font-bold text-xl bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                {profile?.coin_balance || 0}
+              </span>
             </div>
-            <Button variant="outline" size="icon" onClick={handleSignOut}>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={handleSignOut}
+              className="rounded-full hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+            >
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -114,91 +125,83 @@ const Dashboard = () => {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div
-          className="absolute inset-0 opacity-30"
+          className="absolute inset-0 opacity-20"
           style={{
             backgroundImage: `url(${heroImage})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         />
-        <div className="relative container mx-auto px-4 py-16 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
+        <div className="relative container mx-auto px-4 py-20 text-center">
+          <div className="inline-block p-3 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 mb-6">
+            <Award className="w-12 h-12 text-primary" />
+          </div>
+          <h2 className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
             Welcome back, {profile?.full_name}!
           </h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            Complete surveys and earn coins for your time
+          <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
+            Complete surveys and earn real coins for your valuable time and opinions
           </p>
-          <div className="flex flex-wrap justify-center gap-8">
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-2">
-                <TrendingUp className="w-8 h-8 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">Available Surveys</p>
-              <p className="text-2xl font-bold">{surveys.length}</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 rounded-full bg-secondary/20 flex items-center justify-center mb-2">
-                <CheckCircle2 className="w-8 h-8 text-secondary" />
-              </div>
-              <p className="text-sm text-muted-foreground">Completed</p>
-              <p className="text-2xl font-bold">{completedSurveys.length}</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-2">
-                <Coins className="w-8 h-8 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">Total Coins</p>
-              <p className="text-2xl font-bold">{profile?.coin_balance || 0}</p>
-            </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <StatsCard
+              icon={TrendingUp}
+              label="Available Surveys"
+              value={surveys.length}
+              colorClass="bg-gradient-to-br from-blue-500/20 to-blue-600/20 text-blue-500"
+            />
+            <StatsCard
+              icon={CheckCircle2}
+              label="Completed"
+              value={completedSurveys.length}
+              colorClass="bg-gradient-to-br from-green-500/20 to-green-600/20 text-green-500"
+            />
+            <StatsCard
+              icon={Coins}
+              label="Total Coins"
+              value={profile?.coin_balance || 0}
+              colorClass="bg-gradient-to-br from-primary/20 to-secondary/20 text-primary"
+            />
           </div>
         </div>
       </section>
 
       {/* Surveys Grid */}
-      <section className="container mx-auto px-4 py-12">
-        <h3 className="text-2xl font-bold mb-6">Available Surveys</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {surveys.map((survey) => {
-            const completed = isSurveyCompleted(survey.id);
-            return (
-              <Card
-                key={survey.id}
-                className="relative overflow-hidden transition-all hover:shadow-lg hover:scale-105"
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-xl">{survey.title}</CardTitle>
-                    {completed && (
-                      <Badge variant="secondary" className="gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Done
-                      </Badge>
-                    )}
-                  </div>
-                  <CardDescription>{survey.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Coins className="w-5 h-5 text-primary" />
-                      <span className="text-2xl font-bold text-primary">
-                        {survey.coin_reward}
-                      </span>
-                      <span className="text-sm text-muted-foreground">coins</span>
-                    </div>
-                    <Button
-                      onClick={() => navigate(`/survey/${survey.id}`)}
-                      disabled={completed}
-                      variant={completed ? "outline" : "default"}
-                    >
-                      {completed ? "Completed" : "Start Survey"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+      <section className="container mx-auto px-4 py-16">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h3 className="text-3xl font-bold mb-2">Available Surveys</h3>
+            <p className="text-muted-foreground">Choose a survey and start earning coins today</p>
+          </div>
         </div>
+        
+        {surveys.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="inline-block p-4 rounded-2xl bg-muted/50 mb-4">
+              <TrendingUp className="w-12 h-12 text-muted-foreground" />
+            </div>
+            <p className="text-xl text-muted-foreground">No surveys available right now</p>
+            <p className="text-sm text-muted-foreground mt-2">Check back soon for new opportunities!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {surveys.map((survey) => {
+              const completed = isSurveyCompleted(survey.id);
+              return (
+                <SurveyCard
+                  key={survey.id}
+                  id={survey.id}
+                  title={survey.title}
+                  description={survey.description}
+                  coinReward={survey.coin_reward}
+                  completed={completed}
+                  onStart={(id) => navigate(`/survey/${id}`)}
+                />
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

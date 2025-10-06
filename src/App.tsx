@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Survey from "./pages/Survey";
+import TheoremReachSurvey from "./pages/TheoremReachSurvey";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -34,6 +35,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Survey />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/theoremreach"
+            element={
+              <ProtectedRoute>
+                <TheoremReachSurvey />
               </ProtectedRoute>
             }
           />

@@ -1,1 +1,4 @@
 project_id = "zjreckqhlwfpmsjvoxwz"
+
+[functions.theoremreach-callback]
+verify_jwt = false

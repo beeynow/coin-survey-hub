@@ -34,8 +34,8 @@ const TheoremReachSurvey = () => {
 
         setUserId(user.id);
         
-        // Get TheoremReach App ID from environment or configuration
-        const theoremReachAppId = import.meta.env.VITE_THEOREMREACH_APP_ID || "YOUR_APP_ID_HERE";
+        // Get TheoremReach App ID
+        const theoremReachAppId = "24211";
         setAppId(theoremReachAppId);
         
         setLoading(false);

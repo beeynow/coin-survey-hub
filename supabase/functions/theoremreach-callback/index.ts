@@ -1,270 +1,298 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
-// Extend Window interface for TheoremReach
-declare global {
-  interface Window {
-    TheoremReach?: {
-      initWithApiKeyAndUserID: (
-        appId: string,
-        userId: string,
-        callback: () => void
-      ) => void;
-      setRewardListener: (callback: (quantity: number) => void) => void;
-    };
-  }
-}
-
-const TheoremReachSurvey = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [userId, setUserId] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [apiKey, setApiKey] = useState<string>("");
-  const [error, setError] = useState<string>("");
-
-  useEffect(() => {
-    const initTheoremReach = async () => {
-      try {
-        console.log("[TheoremReach] Starting initialization...");
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError) {
-          console.error("[TheoremReach] Auth error:", userError);
-          throw userError;
-        }
-
-        if (!user) {
-          console.error("[TheoremReach] No user found, redirecting to auth");
-          navigate("/auth");
-          return;
-        }
-
-        console.log("[TheoremReach] User authenticated:", user.id);
-        setUserId(user.id);
-
-        // Get API key from environment or use fallback
-        // IMPORTANT: Replace this with your NEW API key after rotating
-        const theoremReachApiKey =
-          import.meta.env.VITE_THEOREMREACH_API_KEY || "YOUR_NEW_API_KEY_HERE";
-
-        if (theoremReachApiKey === "YOUR_NEW_API_KEY_HERE") {
-          console.error("[TheoremReach] API key not configured");
-          setError(
-            "TheoremReach API key not configured. Please contact support."
-          );
-          setLoading(false);
-          return;
-        }
-
-        setApiKey(theoremReachApiKey);
-        console.log("[TheoremReach] API key loaded");
-
-        setLoading(false);
-
-        // Initialize TheoremReach SDK
-        if (window.TheoremReach) {
-          console.log("[TheoremReach] SDK found, initializing...");
-
-          window.TheoremReach.initWithApiKeyAndUserID(
-            theoremReachApiKey,
-            user.id,
-            () => {
-              console.log("[TheoremReach] SDK initialized successfully");
-              toast({
-                title: "Ready to Earn!",
-                description: "Survey wall loaded successfully.",
-              });
-            }
-          );
-
-          // Set up reward callback listener
-          window.TheoremReach.setRewardListener((quantity: number) => {
-            console.log(
-              `[TheoremReach] Reward callback fired: ${quantity} coins`
-            );
-
-            toast({
-              title: "Survey Completed! 🎉",
-              description: `You earned ${quantity} coins!`,
-            });
-
-            // Refresh user data and redirect after delay
-            setTimeout(async () => {
-              console.log("[TheoremReach] Refreshing user data...");
-
-              try {
-                // Trigger a refresh of the user's profile
-                const { data: profile } = await supabase
-                  .from("profiles")
-                  .select("coin_balance")
-                  .eq("id", user.id)
-                  .single();
-
-                console.log(
-                  "[TheoremReach] Updated balance:",
-                  profile?.coin_balance
-                );
-              } catch (err) {
-                console.error("[TheoremReach] Error refreshing balance:", err);
-              }
-
-              console.log("[TheoremReach] Redirecting to dashboard");
-              navigate("/dashboard");
-            }, 2000);
-          });
-        } else {
-          console.warn("[TheoremReach] SDK not loaded on window object");
-          setError("TheoremReach SDK failed to load. Please refresh the page.");
-        }
-      } catch (error: any) {
-        console.error("[TheoremReach] Initialization error:", error);
-        setError(error.message || "Failed to initialize survey wall");
-        setLoading(false);
-
-        toast({
-          title: "Error",
-          description: error.message || "Failed to load surveys",
-          variant: "destructive",
-        });
-      }
-    };
-
-    // Small delay to ensure SDK script is loaded
-    const timer = setTimeout(() => {
-      initTheoremReach();
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [navigate, toast]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading surveys...</p>
-          <p className="text-xs text-muted-foreground mt-2">
-            This may take a few seconds
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/dashboard")}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </Button>
-          </div>
-        </header>
-
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-2xl mx-auto">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error Loading Surveys</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-
-            <div className="mt-4 flex gap-4">
-              <Button onClick={() => window.location.reload()}>Retry</Button>
-              <Button variant="outline" onClick={() => navigate("/dashboard")}>
-                Go to Dashboard
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/dashboard")}
-            className="gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Button>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-card rounded-lg border border-border p-8 text-center mb-8">
-            <h1 className="text-3xl font-bold mb-4">TheoremReach Surveys</h1>
-            <p className="text-muted-foreground mb-6">
-              Complete surveys and earn coins instantly. Your progress is
-              automatically tracked.
-            </p>
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm">
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-              <span>Live Survey Wall</span>
-            </div>
-          </div>
-
-          {/* TheoremReach Survey Wall - Using iframe for better compatibility */}
-          <div
-            id="theoremreach-survey-wall"
-            className="bg-card rounded-lg border border-border overflow-hidden min-h-[600px]"
-          >
-            {apiKey && userId ? (
-              <iframe
-                src={`https://theoremreach.com/respondent_entry/direct?api_key=${apiKey}&user_id=${userId}`}
-                width="100%"
-                height="800"
-                style={{ border: "none", display: "block" }}
-                title="TheoremReach Surveys"
-                onLoad={() =>
-                  console.log("[TheoremReach] Iframe loaded successfully")
-                }
-                onError={(e) =>
-                  console.error("[TheoremReach] Iframe error:", e)
-                }
-              />
-            ) : (
-              <div className="flex items-center justify-center h-[600px]">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            )}
-          </div>
-
-          {/* Debug info - Remove in production */}
-          {import.meta.env.DEV && (
-            <div className="mt-4 p-4 bg-muted rounded-lg text-xs font-mono">
-              <p className="font-bold mb-2">Debug Info:</p>
-              <p>User ID: {userId}</p>
-              <p>API Key: {apiKey ? "***" + apiKey.slice(-4) : "Not loaded"}</p>
-              <p>SDK Loaded: {window.TheoremReach ? "Yes" : "No"}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
 
-export default TheoremReachSurvey;
+interface TheoremReachCallback {
+  user_id: string;
+  transaction_id: string;
+  revenue: number;
+  status: string;
+  hash: string;
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    console.log('[Callback] CORS preflight request');
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const requestId = crypto.randomUUID().slice(0, 8);
+  const timestamp = new Date().toISOString();
+  
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`[Callback:${requestId}] NEW REQUEST - ${timestamp}`);
+  console.log(`[Callback:${requestId}] Method: ${req.method}`);
+  console.log(`[Callback:${requestId}] URL: ${req.url}`);
+  console.log(`${'='.repeat(60)}\n`);
+
+  try {
+    // Get NEW secret key from environment
+    const theoremReachSecretKey = Deno.env.get('THEOREMREACH_SECRET_KEY');
+    
+    if (!theoremReachSecretKey) {
+      console.error(`[Callback:${requestId}] ❌ CRITICAL: Secret key not found in environment`);
+      console.error(`[Callback:${requestId}] Make sure to set: supabase secrets set THEOREMREACH_SECRET_KEY=8bc3e24c2c0191511a272abebd64dd7c8c11c329`);
+      
+      return new Response(JSON.stringify({ 
+        message: 'Transaction already processed',
+        transaction_id: payload.transaction_id,
+        coins_awarded: coinAmount,
+        existing_record_id: existingTx.id,
+        request_id: requestId
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[Callback:${requestId}] ✅ No duplicate found, creating new transaction...`);
+
+    // Create coin transaction
+    const { data: transaction, error: transactionError } = await supabase
+      .from('coin_transactions')
+      .insert({
+        user_id: payload.user_id,
+        amount: coinAmount,
+        transaction_type: 'theoremreach_survey',
+        survey_id: payload.transaction_id,
+      })
+      .select()
+      .single();
+
+    if (transactionError) {
+      console.error(`[Callback:${requestId}] ❌ Error creating transaction:`, transactionError);
+      throw transactionError;
+    }
+
+    console.log(`[Callback:${requestId}] ✅ Transaction created successfully!`);
+    console.log(`[Callback:${requestId}]    Transaction ID: ${transaction.id}`);
+    console.log(`[Callback:${requestId}]    Amount: ${coinAmount} coins`);
+
+    // Verify user balance was updated
+    console.log(`[Callback:${requestId}] 🔍 Verifying user balance update...`);
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('coin_balance')
+      .eq('id', payload.user_id)
+      .single();
+
+    if (profileError) {
+      console.error(`[Callback:${requestId}] ⚠️ Error fetching profile:`, profileError);
+    } else {
+      console.log(`[Callback:${requestId}] ✅ User balance verified: ${profile.coin_balance} coins`);
+    }
+
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`[Callback:${requestId}] ✅✅✅ SUCCESS ✅✅✅`);
+    console.log(`[Callback:${requestId}] User ${payload.user_id} awarded ${coinAmount} coins`);
+    console.log(`[Callback:${requestId}] Transaction ${payload.transaction_id} processed`);
+    console.log(`${'='.repeat(60)}\n`);
+
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: 'Reward processed successfully',
+      data: {
+        coins_awarded: coinAmount,
+        user_id: payload.user_id,
+        transaction_id: payload.transaction_id,
+        new_balance: profile?.coin_balance,
+        timestamp: timestamp
+      },
+      request_id: requestId
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error: any) {
+    console.error(`\n${'='.repeat(60)}`);
+    console.error(`[Callback:${requestId}] ❌❌❌ ERROR ❌❌❌`);
+    console.error(`[Callback:${requestId}] Error: ${error.message}`);
+    console.error(`[Callback:${requestId}] Stack: ${error.stack}`);
+    console.error(`${'='.repeat(60)}\n`);
+    
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error',
+      message: error.message,
+      request_id: requestId,
+      timestamp: new Date().toISOString()
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
+
+/**
+ * Generate SHA-256 hash for TheoremReach verification
+ * Format: SHA256(user_id + transaction_id + revenue + secret_key)
+ */
+async function generateHash(data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+} 
+        error: 'Configuration error - Secret key missing',
+        request_id: requestId
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[Callback:${requestId}] ✅ Secret key loaded (length: ${theoremReachSecretKey.length})`);
+
+    // Parse the incoming payload
+    const contentType = req.headers.get('content-type') || '';
+    console.log(`[Callback:${requestId}] Content-Type: ${contentType}`);
+    
+    let payload: TheoremReachCallback;
+    
+    if (contentType.includes('application/json')) {
+      console.log(`[Callback:${requestId}] Parsing JSON body...`);
+      payload = await req.json();
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      console.log(`[Callback:${requestId}] Parsing form data...`);
+      const formData = await req.formData();
+      payload = {
+        user_id: formData.get('user_id') as string,
+        transaction_id: formData.get('transaction_id') as string,
+        revenue: parseFloat(formData.get('revenue') as string),
+        status: formData.get('status') as string,
+        hash: formData.get('hash') as string,
+      };
+    } else {
+      // Try parsing as URL parameters
+      console.log(`[Callback:${requestId}] Parsing URL parameters...`);
+      const url = new URL(req.url);
+      payload = {
+        user_id: url.searchParams.get('user_id') as string,
+        transaction_id: url.searchParams.get('transaction_id') as string,
+        revenue: parseFloat(url.searchParams.get('revenue') as string),
+        status: url.searchParams.get('status') as string,
+        hash: url.searchParams.get('hash') as string,
+      };
+    }
+
+    console.log(`[Callback:${requestId}] 📦 Payload received:`);
+    console.log(`[Callback:${requestId}]    User ID: ${payload.user_id}`);
+    console.log(`[Callback:${requestId}]    Transaction ID: ${payload.transaction_id}`);
+    console.log(`[Callback:${requestId}]    Revenue: $${payload.revenue}`);
+    console.log(`[Callback:${requestId}]    Status: ${payload.status}`);
+    console.log(`[Callback:${requestId}]    Hash: ${payload.hash ? payload.hash.slice(0, 16) + '...' : 'MISSING'}`);
+
+    // Validate required fields
+    if (!payload.user_id || !payload.transaction_id || payload.revenue === undefined || !payload.status || !payload.hash) {
+      console.error(`[Callback:${requestId}] ❌ Missing required fields:`);
+      console.error(`[Callback:${requestId}]    user_id: ${payload.user_id ? '✓' : '✗'}`);
+      console.error(`[Callback:${requestId}]    transaction_id: ${payload.transaction_id ? '✓' : '✗'}`);
+      console.error(`[Callback:${requestId}]    revenue: ${payload.revenue !== undefined ? '✓' : '✗'}`);
+      console.error(`[Callback:${requestId}]    status: ${payload.status ? '✓' : '✗'}`);
+      console.error(`[Callback:${requestId}]    hash: ${payload.hash ? '✓' : '✗'}`);
+      
+      return new Response(JSON.stringify({ 
+        error: 'Missing required fields',
+        required: ['user_id', 'transaction_id', 'revenue', 'status', 'hash'],
+        received: {
+          user_id: !!payload.user_id,
+          transaction_id: !!payload.transaction_id,
+          revenue: payload.revenue !== undefined,
+          status: !!payload.status,
+          hash: !!payload.hash
+        },
+        request_id: requestId
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify the hash for security
+    // TheoremReach hash format: SHA256(user_id + transaction_id + revenue + secret_key)
+    const stringToHash = `${payload.user_id}${payload.transaction_id}${payload.revenue}${theoremReachSecretKey}`;
+    console.log(`[Callback:${requestId}] 🔐 Generating hash...`);
+    console.log(`[Callback:${requestId}]    Format: user_id + transaction_id + revenue + secret_key`);
+    console.log(`[Callback:${requestId}]    String: ${payload.user_id}${payload.transaction_id}${payload.revenue}***`);
+    
+    const expectedHash = await generateHash(stringToHash);
+    console.log(`[Callback:${requestId}]    Expected: ${expectedHash}`);
+    console.log(`[Callback:${requestId}]    Received: ${payload.hash}`);
+    console.log(`[Callback:${requestId}]    Match: ${payload.hash === expectedHash ? '✅' : '❌'}`);
+
+    if (payload.hash !== expectedHash) {
+      console.error(`[Callback:${requestId}] ❌ SECURITY ALERT: Hash verification FAILED!`);
+      console.error(`[Callback:${requestId}] This indicates:`);
+      console.error(`[Callback:${requestId}]   - Wrong secret key`);
+      console.error(`[Callback:${requestId}]   - Tampered request`);
+      console.error(`[Callback:${requestId}]   - Different hash algorithm`);
+      
+      return new Response(JSON.stringify({ 
+        error: 'Invalid hash - security verification failed',
+        request_id: requestId
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[Callback:${requestId}] ✅ Hash verified successfully!`);
+
+    // Check survey status
+    if (payload.status !== 'completed') {
+      console.log(`[Callback:${requestId}] ⏭️ Survey status is '${payload.status}', not 'completed' - skipping reward`);
+      return new Response(JSON.stringify({ 
+        message: 'Survey not completed',
+        status: payload.status,
+        request_id: requestId
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[Callback:${requestId}] ✅ Survey completed, processing reward...`);
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error(`[Callback:${requestId}] ❌ Supabase credentials missing`);
+      throw new Error('Supabase configuration error');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log(`[Callback:${requestId}] ✅ Supabase client initialized`);
+
+    // Convert revenue to coins (revenue in dollars, multiply by 100)
+    const coinAmount = Math.round(payload.revenue * 100);
+    console.log(`[Callback:${requestId}] 💰 Revenue: $${payload.revenue} → ${coinAmount} coins`);
+
+    // Check for duplicate transaction
+    console.log(`[Callback:${requestId}] 🔍 Checking for duplicate transaction...`);
+    const { data: existingTx, error: checkError } = await supabase
+      .from('coin_transactions')
+      .select('id, created_at')
+      .eq('survey_id', payload.transaction_id)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error(`[Callback:${requestId}] ❌ Error checking duplicates:`, checkError);
+      throw checkError;
+    }
+
+    if (existingTx) {
+      console.log(`[Callback:${requestId}] ⚠️ DUPLICATE TRANSACTION DETECTED!`);
+      console.log(`[Callback:${requestId}]    Existing Transaction ID: ${existingTx.id}`);
+      console.log(`[Callback:${requestId}]    Created At: ${existingTx.created_at}`);
+      console.log(`[Callback:${requestId}]    Action: Skipping (already processed)`);
+      
+      return new Response(JSON.stringify({

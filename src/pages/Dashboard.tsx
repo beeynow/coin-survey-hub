@@ -6,31 +6,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Coins, LogOut, TrendingUp, CheckCircle2, Award } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
 import StatsCard from "@/components/dashboard/StatsCard";
-import SurveyCard from "@/components/dashboard/SurveyCard";
 
 interface Profile {
   coin_balance: number;
   full_name: string;
 }
 
-interface Survey {
-  id: string;
-  title: string;
-  description: string;
-  coin_reward: number;
-  questions: any[];
-}
-
-interface CompletedSurvey {
-  survey_id: string;
-}
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [completedSurveys, setCompletedSurveys] = useState<string[]>([]);
+  const [completedCount, setCompletedCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,18 +32,14 @@ const Dashboard = () => {
         return;
       }
 
-      const [profileRes, surveysRes, responsesRes] = await Promise.all([
+      const [profileRes, responsesRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).single(),
-        supabase.from("surveys").select("*").eq("is_active", true),
-        supabase.from("survey_responses").select("survey_id").eq("user_id", user.id),
+        supabase.from("coin_transactions").select("*").eq("user_id", user.id).eq("transaction_type", "theoremreach_survey"),
       ]);
 
       if (profileRes.data) setProfile(profileRes.data);
-      if (surveysRes.data) {
-        setSurveys(surveysRes.data as Survey[]);
-      }
       if (responsesRes.data) {
-        setCompletedSurveys(responsesRes.data.map((r: CompletedSurvey) => r.survey_id));
+        setCompletedCount(responsesRes.data.length);
       }
     } catch (error: any) {
       toast({
@@ -74,8 +56,6 @@ const Dashboard = () => {
     await supabase.auth.signOut();
     navigate("/auth");
   };
-
-  const isSurveyCompleted = (surveyId: string) => completedSurveys.includes(surveyId);
 
   if (loading) {
     return (
@@ -146,15 +126,9 @@ const Dashboard = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <StatsCard
-              icon={TrendingUp}
-              label="Available Surveys"
-              value={surveys.length}
-              colorClass="bg-gradient-to-br from-blue-500/20 to-blue-600/20 text-blue-500"
-            />
-            <StatsCard
               icon={CheckCircle2}
-              label="Completed"
-              value={completedSurveys.length}
+              label="Completed Surveys"
+              value={completedCount}
               colorClass="bg-gradient-to-br from-green-500/20 to-green-600/20 text-green-500"
             />
             <StatsCard
@@ -163,45 +137,39 @@ const Dashboard = () => {
               value={profile?.coin_balance || 0}
               colorClass="bg-gradient-to-br from-primary/20 to-secondary/20 text-primary"
             />
+            <StatsCard
+              icon={Award}
+              label="Earnings This Month"
+              value={profile?.coin_balance || 0}
+              colorClass="bg-gradient-to-br from-purple-500/20 to-purple-600/20 text-purple-500"
+            />
           </div>
         </div>
       </section>
 
-      {/* Surveys Grid */}
+      {/* TheoremReach Surveys Section */}
       <section className="container mx-auto px-4 py-16">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h3 className="text-3xl font-bold mb-2">Available Surveys</h3>
-            <p className="text-muted-foreground">Choose a survey and start earning coins today</p>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-gradient-to-br from-card via-card to-primary/5 rounded-2xl border border-border/50 p-12 text-center shadow-xl backdrop-blur-sm">
+            <div className="inline-block p-4 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 mb-6">
+              <TrendingUp className="w-16 h-16 text-primary" />
+            </div>
+            <h3 className="text-4xl font-bold mb-4 bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+              Ready to Earn?
+            </h3>
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Access hundreds of surveys from TheoremReach. Complete surveys and earn coins instantly. Your earnings are automatically tracked and added to your balance.
+            </p>
+            <Button 
+              size="lg" 
+              onClick={() => navigate("/theoremreach")}
+              className="gap-2 text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+            >
+              <TrendingUp className="w-5 h-5" />
+              Browse Available Surveys
+            </Button>
           </div>
         </div>
-        
-        {surveys.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="inline-block p-4 rounded-2xl bg-muted/50 mb-4">
-              <TrendingUp className="w-12 h-12 text-muted-foreground" />
-            </div>
-            <p className="text-xl text-muted-foreground">No surveys available right now</p>
-            <p className="text-sm text-muted-foreground mt-2">Check back soon for new opportunities!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {surveys.map((survey) => {
-              const completed = isSurveyCompleted(survey.id);
-              return (
-                <SurveyCard
-                  key={survey.id}
-                  id={survey.id}
-                  title={survey.title}
-                  description={survey.description}
-                  coinReward={survey.coin_reward}
-                  completed={completed}
-                  onStart={(id) => navigate(`/survey/${id}`)}
-                />
-              );
-            })}
-          </div>
-        )}
       </section>
     </div>
   );

@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Survey from "./pages/Survey";
 import TheoremReachSurvey from "./pages/TheoremReachSurvey";
+import Withdraw from "./pages/Withdraw";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -43,6 +44,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <TheoremReachSurvey />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/withdraw"
+            element={
+              <ProtectedRoute>
+                <Withdraw />
               </ProtectedRoute>
             }
           />

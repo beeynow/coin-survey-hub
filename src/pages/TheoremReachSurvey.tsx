@@ -11,23 +11,19 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-// Extend Window interface for TheoremReach
+// Extend Window interface for TheoremReach Web SDK
 declare global {
   interface Window {
-    TheoremReach?: {
-      initWithApiKeyAndUserID: (
-        apiKey: string,
-        userId: string,
-        callback: () => void
-      ) => void;
-      setRewardListener: (callback: (quantity: number) => void) => void;
-      showRewardCenter?: () => void;
-      surveyWall?: {
-        show: () => void;
-        hide: () => void;
-      };
-    };
+    TheoremReach?: any;
   }
+}
+
+interface TheoremReachConfig {
+  apiKey: string;
+  userId: string;
+  onReward?: (data: { earnedThisSession: number }) => void;
+  onRewardCenterOpened?: () => void;
+  onRewardCenterClosed?: () => void;
 }
 
 const TheoremReachSurvey = () => {
@@ -108,82 +104,89 @@ const TheoremReachSurvey = () => {
           setSurveyUrl(surveyWallUrl);
         }
 
-        // Wait for SDK to be available
+        // Wait for SDK to be available and initialize
         const checkSDK = () => {
-          if (window.TheoremReach) {
+          if (window.TheoremReach && typeof window.TheoremReach === 'function') {
             console.log(
-              "[TheoremReach] SDK detected, initializing with NEW credentials..."
+              "[TheoremReach] SDK detected, initializing..."
             );
 
             try {
-              window.TheoremReach.initWithApiKeyAndUserID(
-                THEOREMREACH_API_KEY,
-                userId,
-                () => {
+              const theoremReachConfig: TheoremReachConfig = {
+                apiKey: THEOREMREACH_API_KEY,
+                userId: userId,
+                onReward: (data: { earnedThisSession: number }) => {
                   console.log(
-                    "[TheoremReach] ✅ SDK initialized successfully with NEW API key"
+                    `[TheoremReach] 🎉 Reward received: ${data.earnedThisSession} coins`
                   );
+
                   if (isMounted) {
-                    setSdkReady(true);
-                    setLoading(false);
+                    setRewardReceived(true);
 
                     toast({
-                      title: "Ready to Earn! 🎯",
-                      description:
-                        "Click 'Open Survey Wall' to start earning coins",
+                      title: "Survey Completed! 🎉",
+                      description: `You earned ${data.earnedThisSession} coins!`,
+                      duration: 5000,
                     });
-                  }
-                }
-              );
 
-              // Set up reward listener
-              window.TheoremReach.setRewardListener((quantity: number) => {
-                console.log(
-                  `[TheoremReach] 🎉 Reward received: ${quantity} coins`
-                );
+                    // Refresh balance and redirect
+                    setTimeout(async () => {
+                      console.log("[TheoremReach] Refreshing user balance...");
 
-                if (isMounted) {
-                  setRewardReceived(true);
+                      try {
+                        const { data: profile } = await supabase
+                          .from("profiles")
+                          .select("coin_balance")
+                          .eq("id", userId)
+                          .maybeSingle();
 
-                  toast({
-                    title: "Survey Completed! 🎉",
-                    description: `You earned ${quantity} coins!`,
-                    duration: 5000,
-                  });
-
-                  // Refresh balance and redirect
-                  setTimeout(async () => {
-                    console.log("[TheoremReach] Refreshing user balance...");
-
-                    try {
-                      const { data: profile } = await supabase
-                        .from("profiles")
-                        .select("coin_balance")
-                        .eq("id", userId)
-                        .maybeSingle();
-
-                      if (profile) {
-                        console.log(
-                          "[TheoremReach] New balance:",
-                          profile.coin_balance
+                        if (profile) {
+                          console.log(
+                            "[TheoremReach] New balance:",
+                            profile.coin_balance
+                          );
+                          toast({
+                            title: "Balance Updated! 💰",
+                            description: `New balance: ${profile.coin_balance} coins`,
+                          });
+                        }
+                      } catch (err) {
+                        console.error(
+                          "[TheoremReach] Error refreshing balance:",
+                          err
                         );
-                        toast({
-                          title: "Balance Updated! 💰",
-                          description: `New balance: ${profile.coin_balance} coins`,
-                        });
                       }
-                    } catch (err) {
-                      console.error(
-                        "[TheoremReach] Error refreshing balance:",
-                        err
-                      );
-                    }
 
-                    console.log("[TheoremReach] Redirecting to dashboard...");
-                    navigate("/dashboard");
-                  }, 2000);
+                      console.log("[TheoremReach] Redirecting to dashboard...");
+                      navigate("/dashboard");
+                    }, 2000);
+                  }
+                },
+                onRewardCenterOpened: () => {
+                  console.log("[TheoremReach] Reward center opened");
+                },
+                onRewardCenterClosed: () => {
+                  console.log("[TheoremReach] Reward center closed");
                 }
-              });
+              };
+
+              // Initialize the SDK
+              const TR = new window.TheoremReach(theoremReachConfig);
+              
+              console.log("[TheoremReach] ✅ SDK initialized successfully");
+              
+              if (isMounted) {
+                setSdkReady(true);
+                setLoading(false);
+
+                toast({
+                  title: "Ready to Earn! 🎯",
+                  description: "Click 'Open Survey Wall' to start earning coins",
+                });
+              }
+
+              // Store TR instance globally for showRewardCenter
+              (window as any).TR = TR;
             } catch (err) {
               console.error("[TheoremReach] SDK init error:", err);
               if (isMounted) {
@@ -226,10 +229,29 @@ const TheoremReachSurvey = () => {
     };
   }, [navigate, toast]);
 
-  // Open survey in new window
+  // Open survey wall using SDK or fallback to direct link
   const openSurveyWall = () => {
+    console.log("[TheoremReach] Opening survey wall...");
+
+    // Try to use SDK first if available
+    if ((window as any).TR && typeof (window as any).TR.showRewardCenter === 'function') {
+      console.log("[TheoremReach] Using SDK showRewardCenter");
+      try {
+        (window as any).TR.showRewardCenter();
+        toast({
+          title: "Survey Wall Opened! 🚀",
+          description: "Complete surveys to earn rewards. Keep this page open!",
+          duration: 7000,
+        });
+        return;
+      } catch (err) {
+        console.error("[TheoremReach] SDK error, falling back to direct link:", err);
+      }
+    }
+
+    // Fallback to direct link
     if (surveyUrl) {
-      console.log("[TheoremReach] Opening survey wall in new window");
+      console.log("[TheoremReach] Opening survey wall in new window (direct link)");
 
       // Open in popup window with optimized dimensions
       const width = 900;

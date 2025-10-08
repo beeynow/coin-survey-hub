@@ -97,7 +97,7 @@ const TheoremReachSurvey = () => {
         }
 
         // Build the survey wall URL with NEW API key
-        const surveyWallUrl = `https://theoremreach.com/respondent_entry/direct?api_key=${THEOREMREACH_API_KEY}&uid=${encodeURIComponent(
+        const surveyWallUrl = `https://theoremreach.com/respondent_entry/direct?api_key=${THEOREMREACH_API_KEY}&user_id=${encodeURIComponent(
           userId
         )}&redirect_url=${encodeURIComponent(
           "https://getpaid.website/survey-complete"

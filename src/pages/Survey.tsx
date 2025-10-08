@@ -93,12 +93,31 @@ const Survey = () => {
 
     setSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // Get session first to ensure we have a valid authenticated user
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        throw new Error("Please log in to submit surveys");
+      }
+
+      const userId = session.user.id;
+
+      // Verify profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+      
+      if (!profile) {
+        throw new Error("User profile not found. Please contact support.");
+      }
 
       const { error } = await supabase.from("survey_responses").insert({
         survey_id: survey.id,
-        user_id: user.id,
+        user_id: userId,
         answers,
       });
 
@@ -111,9 +130,10 @@ const Survey = () => {
 
       navigate("/dashboard");
     } catch (error: any) {
+      console.error("Survey submission error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to submit survey",
         variant: "destructive",
       });
     } finally {

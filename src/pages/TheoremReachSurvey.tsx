@@ -56,26 +56,49 @@ const TheoremReachSurvey = () => {
         );
         console.log("[TheoremReach] App ID:", APP_ID);
 
-        // Get authenticated user
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+        // Get session to ensure authenticated user
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (userError || !user) {
+        if (sessionError || !session?.user) {
           console.error("[TheoremReach] No authenticated user");
+          toast({
+            title: "Authentication Required",
+            description: "Please log in to access surveys",
+            variant: "destructive",
+          });
           navigate("/auth");
           return;
         }
 
-        console.log("[TheoremReach] User ID:", user.id);
+        const userId = session.user.id;
+
+        // Verify profile exists in database
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("id, coin_balance")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error("[TheoremReach] Profile fetch error:", profileError);
+          throw new Error("Failed to fetch user profile");
+        }
+
+        if (!profile) {
+          console.error("[TheoremReach] Profile not found for user:", userId);
+          throw new Error("User profile not found. Please contact support.");
+        }
+
+        console.log("[TheoremReach] User ID:", userId);
+        console.log("[TheoremReach] Current balance:", profile.coin_balance);
+        
         if (isMounted) {
-          setUserId(user.id);
+          setUserId(userId);
         }
 
         // Build the survey wall URL with NEW API key
         const surveyWallUrl = `https://theoremreach.com/respondent_entry/direct?api_key=${THEOREMREACH_API_KEY}&uid=${encodeURIComponent(
-          user.id
+          userId
         )}&redirect_url=${encodeURIComponent(
           "https://getpaid.website/survey-complete"
         )}`;
@@ -95,7 +118,7 @@ const TheoremReachSurvey = () => {
             try {
               window.TheoremReach.initWithApiKeyAndUserID(
                 THEOREMREACH_API_KEY,
-                user.id,
+                userId,
                 () => {
                   console.log(
                     "[TheoremReach] ✅ SDK initialized successfully with NEW API key"
@@ -136,8 +159,8 @@ const TheoremReachSurvey = () => {
                       const { data: profile } = await supabase
                         .from("profiles")
                         .select("coin_balance")
-                        .eq("id", user.id)
-                        .single();
+                        .eq("id", userId)
+                        .maybeSingle();
 
                       if (profile) {
                         console.log(

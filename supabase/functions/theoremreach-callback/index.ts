@@ -68,12 +68,19 @@ Deno.serve(async (req) => {
     
     if (contentType.includes('application/json')) {
       console.log(`[Callback:${requestId}] Parsing JSON body...`);
-      payload = await req.json();
+      const rawPayload = await req.json();
+      payload = {
+        user_id: rawPayload.user_id || rawPayload.uid, // TheoremReach uses 'uid'
+        transaction_id: rawPayload.transaction_id,
+        revenue: rawPayload.revenue,
+        status: rawPayload.status,
+        hash: rawPayload.hash,
+      };
     } else if (contentType.includes('application/x-www-form-urlencoded')) {
       console.log(`[Callback:${requestId}] Parsing form data...`);
       const formData = await req.formData();
       payload = {
-        user_id: formData.get('user_id') as string,
+        user_id: (formData.get('user_id') || formData.get('uid')) as string, // TheoremReach uses 'uid'
         transaction_id: formData.get('transaction_id') as string,
         revenue: parseFloat(formData.get('revenue') as string),
         status: formData.get('status') as string,
@@ -84,7 +91,7 @@ Deno.serve(async (req) => {
       console.log(`[Callback:${requestId}] Parsing URL parameters...`);
       const url = new URL(req.url);
       payload = {
-        user_id: url.searchParams.get('user_id') as string,
+        user_id: (url.searchParams.get('user_id') || url.searchParams.get('uid')) as string, // TheoremReach uses 'uid'
         transaction_id: url.searchParams.get('transaction_id') as string,
         revenue: parseFloat(url.searchParams.get('revenue') as string),
         status: url.searchParams.get('status') as string,

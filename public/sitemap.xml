@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://getpaid.website/</loc>
+    <lastmod>2025-10-26</lastmod>
+    <priority>1.00</priority>
+  </url>
+  <url>
+    <loc>https://getpaid.website/theoremreach</loc>
+    <lastmod>2025-10-26</lastmod>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://getpaid.website/withdraw</loc>
+    <lastmod>2025-10-26</lastmod>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://getpaid.website/dashboard</loc>
+    <lastmod>2025-10-26</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://getpaid.website/auth</loc>
+    <lastmod>2025-10-26</lastmod>
+    <priority>0.80</priority>
+  </url>
+</urlset>
